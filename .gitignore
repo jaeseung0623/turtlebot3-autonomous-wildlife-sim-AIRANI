@@ -1,0 +1,6 @@
+echo "build/
+install/
+log/
+.vscode/
+__pycache__/
+*.pyc" >> .gitignore

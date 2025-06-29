@@ -1,0 +1,16 @@
+material Gazebo/speed_limit_30
+{
+  receive_shadows on
+  technique
+  {
+    pass
+    {
+      texture_unit
+      {
+        texture speed_limit_30.png
+        filtering anisotropic
+        max_anisotropy 16
+      }
+    }
+  }
+}

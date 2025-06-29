@@ -1,0 +1,14 @@
+material Gazebo/MovingBox
+{
+  technique
+  {
+    pass
+    {
+      texture_unit
+      {
+        texture images.png
+        filtering trilinear
+      }
+    }
+  }
+}

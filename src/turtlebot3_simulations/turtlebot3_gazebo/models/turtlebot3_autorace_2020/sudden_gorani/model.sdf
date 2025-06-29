@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<sdf version="1.6">
+  <model name="sudden_gorani">
+    <static>true</static>
+
+    <link name="sign_link">
+      <!-- 표지판 본체 -->
+      <visual name="sign_visual">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.125 0.0025 0.125</size>
+          </box>
+        </geometry>
+        <material>
+          <script>
+            <uri>model://sudden_gorani/materials/scripts</uri>
+            <uri>model://sudden_gorani/materials/textures</uri>
+            <name>Gazebo/sudden_gorani</name>
+          </script>
+        </material>
+      </visual>
+    </link>
+  </model>
+</sdf>

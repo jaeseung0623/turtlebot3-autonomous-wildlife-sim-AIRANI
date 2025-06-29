@@ -1,0 +1,16 @@
+material Gazebo/limit_end
+{
+  receive_shadows on
+  technique
+  {
+    pass
+    {
+      texture_unit
+      {
+        texture limit_end.png
+        filtering anisotropic
+        max_anisotropy 16
+      }
+    }
+  }
+}

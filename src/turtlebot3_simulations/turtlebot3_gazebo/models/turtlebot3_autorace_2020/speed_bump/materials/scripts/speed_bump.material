@@ -1,0 +1,15 @@
+material SpeedBumpTexture
+{
+  technique
+  {
+    pass
+    {
+      texture_unit
+      {
+        texture speed_bump.png
+      }
+    }
+  }
+}
+
+

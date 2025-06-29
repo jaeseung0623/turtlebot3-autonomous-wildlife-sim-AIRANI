@@ -1,0 +1,16 @@
+material Gazebo/sharp_curve
+{
+  receive_shadows on
+  technique
+  {
+    pass
+    {
+      texture_unit
+      {
+        texture sharp_curve.png
+        filtering anisotropic
+        max_anisotropy 16
+      }
+    }
+  }
+}

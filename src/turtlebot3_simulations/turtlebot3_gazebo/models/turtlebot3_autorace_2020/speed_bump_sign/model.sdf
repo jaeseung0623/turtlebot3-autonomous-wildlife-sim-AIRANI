@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<sdf version="1.6">
+  <model name="speed_bump_sign">
+    <static>true</static>
+
+    <link name="sign_link">
+      <!-- 기둥 -->
+      <visual name="pole_visual">
+        <pose>0 0 0.05 0 0 0</pose>
+        <geometry>
+          <cylinder>
+            <radius>0.0075</radius>
+            <length>0.1</length>
+          </cylinder>
+        </geometry>
+        <material>
+          <ambient>0.2 0.2 0.2 1</ambient>
+          <diffuse>0.2 0.2 0.2 1</diffuse>
+        </material>
+      </visual>
+
+      <!-- 표지판 본체 -->
+      <visual name="sign_visual">
+        <pose>0 0 0.1625 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.125 0.0025 0.125</size>
+          </box>
+        </geometry>
+        <material>
+          <script>
+            <uri>model://speed_bump_sign/materials/scripts</uri>
+            <uri>model://speed_bump_sign/materials/textures</uri>
+            <name>Gazebo/speed_bump_sign</name>
+          </script>
+        </material>
+      </visual>
+    </link>
+  </model>
+</sdf>

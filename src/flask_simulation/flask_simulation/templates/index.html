@@ -1,0 +1,326 @@
+<!-- index.html 수정 예시 -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ROS Control Panel</title>
+    <style>
+        /* 기존 속도 오버레이 */
+        #speed-overlay {
+            position: absolute;
+            top: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.271);
+            color: #ffffff;
+            font-size: 70px;
+            font-weight: bold;
+            padding: 12px 28px;
+            border-radius: 15px;
+            box-shadow: 0 0 12px rgba(0,0,0,0.5);
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        #dist-box{
+            position:absolute; right:20px;
+            background:rgba(0,0,0,0.271); color:#fff;
+            padding:6px 12px; border-radius:8px;
+            font-family:monospace; font-size:20px; font-weight:bold;
+        }
+
+        /* 현재 시간 우상단 */
+        #clock {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            color: #ffffff;
+            background-color: rgba(0, 0, 0, 0.271);
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-family: monospace;
+        }
+
+        /* MODE 토글 버튼 */
+        #mode-btn{
+            position:absolute; top:20px; left:20px;
+            background:#007aff;
+            color:#fff; border:none;
+            padding:8px 16px; border-radius:6px;
+            font-weight:bold; cursor:pointer;
+        }
+
+        /* RESET 버튼 */
+        #reset-btn{
+            position:absolute; top:120px; right:20px;
+            background:#dc4636d3;
+            color:#fff; border:none;
+            padding:6px 12px; border-radius:6px;
+            font-weight:bold; cursor:pointer;
+        }
+
+        /* 속도 조절 버튼 영상 하단 */
+        .control-button{
+        position: absolute;
+        bottom: 20px;
+        width: 80px;          /* 지름 */
+        height: 80px;
+        line-height: 80px;    /* 세로 중앙 */
+        text-align: center;   /* 가로 중앙 */
+        font-size: 46px;      /* 기호 크기 */
+        font-weight: bold;
+        background: rgba(0, 0, 0, 0.224);
+        color: #fff;
+        border: none;
+        border-radius: 50%;   /* 완전한 원 */
+        cursor: pointer;
+        opacity: 0.9;
+        }
+
+        #map-holder{
+            position:relative;
+            display:inline-block;
+            margin-left:12px;          /* 카메라와 간격 */
+            overflow:hidden;
+            width:520px; height:496px; /* ★ 지도의 실제 크기 명시 */
+        }
+
+        /* 지도 이미지/캔버스는 패닝용 레이어 안에 둠 */
+        #map-layer{ position:absolute; left:0; top:0; }
+        #map-img, #map-canvas{
+            position:absolute; left:0; top:0;
+            width:520px; height:496px;
+        }
+
+        /* MAP MODE 버튼 (우상단) */
+        #map-mode-btn{
+        position:absolute; top:8px; right:8px;
+        background:#007aff; color:#fff; border:none;
+        padding:4px 10px; border-radius:6px;
+        font-size:14px; font-weight:bold; cursor:pointer;
+        }
+
+        #decrease-btn { left: 180px; }
+        #stop-btn     { left: 50%; transform: translateX(-50%); }
+        #increase-btn { right: 180px; }
+        /* 살짝 진해지는 호버 효과 */
+        .control-button:hover { background: rgba(0, 0, 0, 0.55); }
+        #dist-box    { top:75px; }  /* 그 아래 */
+    </style>
+</head>
+<body>
+    <!-- <div style="position: relative; display: inline-block;"> -->
+    <div style="display:flex;">
+        <div style="position:relative;">
+        <img src="/video_feed" width="640" height="480">
+        <div id="speed-overlay">0</div>
+        <div id="clock">--:--:--</div>  <!-- 현재 시간 -->
+        <div id="dist-box">DIST: ---- m</div>
+
+    <!-- 속도 제어 버튼들 -->
+    <button id="decrease-btn" class="control-button">-</button>
+    <button id="stop-btn"     class="control-button">🔴 </button>
+    <button id="increase-btn" class="control-button">+</button>
+    <button id="mode-btn">MODE: AUTO</button>
+    <button id="reset-btn">RESET</button>
+        </div>
+        <div id="map-holder">
+          <div id="map-layer">
+            <img id="map-img" src="/static/map.png">
+            <canvas id="map-canvas" width="520" height="496"></canvas>
+          </div>
+          <button id="map-mode-btn">MAP: FIXED</button>
+        </div>
+    </div>
+    <script>
+    /* ----------------------  전역 상태 ---------------------- */
+    let manualMode = false;   // false=AUTO, true=MANUAL
+    let speedCmd   = 0.0;     // 현재 수동 속도 (m/s)
+
+    /* ---------------- ① 계기판·시계 업데이트 ---------------- */
+    setInterval(() => {
+    fetch('/speed')
+        .then(r => r.json())
+        .then(data => {
+            const v = Math.round(data.speed);     // km/h 정수
+            const elem = document.getElementById('speed-overlay');
+            elem.innerText = v;
+            elem.style.color = (v >= 10) ? '#FF3333' : '#ffffff';
+        });
+    }, 300);
+
+    setInterval(() => {
+    document.getElementById('clock').innerText =
+        new Date().toLocaleTimeString();
+    }, 1000);
+
+    /* ---------------- ② MODE 토글 ---------------- */
+    function refreshModeUI(){
+    const btn = document.getElementById('mode-btn');
+    if (manualMode){
+        btn.innerText = 'MODE: MANUAL';
+        btn.style.background = '#007aff';   // 파랑
+    }else{
+        btn.innerText = 'MODE: AUTO';
+        btn.style.background = 'rgba(0, 0, 0, 0.271)';   // 짙은 회색
+    }
+    }
+    document.getElementById('mode-btn').onclick = () => {
+    manualMode = !manualMode;
+    fetch('/mode', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ mode: manualMode ? 'manual' : 'auto' })
+    // }).then(refreshModeUI);
+        }).then(()=>{
+        refreshModeUI();
+        /* ★ MANUAL 진입 직후 speedCmd 초기화 */
+        if(manualMode){
+            fetch('/speed')
+                .then(r=>r.json())
+                .then(d => {      // d.speed 는 km/h
+                    speedCmd = d.speed / 100;  // km/h → m/s
+                });
+        }
+    });
+    };
+    refreshModeUI();
+
+    /* ---------------- ③ 속도 버튼 핸들러 ---------------- */
+    function sendSpeed(){
+    fetch('/cmd_vel', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ speed: speedCmd })   // ← 숫자만 보냄
+    });
+    }
+    document.getElementById('increase-btn').onclick = () => {
+    speedCmd = Math.min(speedCmd + 0.05, 1.5);  // 상한 1.5 m/s
+    sendSpeed();
+    };
+    document.getElementById('decrease-btn').onclick = () => {
+    speedCmd = Math.max(speedCmd - 0.05, 0.0);
+    sendSpeed();
+    };
+    document.getElementById('stop-btn').onclick = () => {
+    speedCmd = 0.0;
+    sendSpeed();
+    };
+
+        /* ---- 기존 누적거리 UI ---- */
+    setInterval(()=>{
+        fetch('/stats')
+            .then(r=>r.json())
+            .then(s=>{
+                const m = s.dist;                // 누적 거리 (m)
+                const text = (m >= 1000)
+                    ? `DIST: ${(m/1000).toFixed(2)} km`
+                    : `DIST: ${m.toFixed(1)} m`;
+                document.getElementById('dist-box').innerText = text;
+            });
+    }, 1000);   /* 1 초마다 */
+
+    /* ---- RESET 버튼 ---- */
+    document.getElementById('reset-btn').onclick = () => {
+        fetch('/reset_distance', { method: 'POST' })
+            .then(() => {
+                document.getElementById('dist-box').innerText = 'DIST: 0.0 m';
+            });
+    };
+
+    /* (1)  지도 파라미터  ------------------------------------ */
+    const MAP_RES_X = 0.00756;      // 가로 m/px
+    const MAP_RES_Y = 0.00772;      // 세로 m/px  (X·Y 따로 쓰면 더 정확)
+    const MAP_ORG   = { x:-1.964, y:-1.931 };   // 왼쪽-아래 월드 좌표
+    const CROP_RADIUS_M = 1.0;
+
+
+    /* (2)  캔버스 컨텍스트 얻기 ------------------------------ */
+    const mcv  = document.getElementById('map-canvas');
+    const mctx = mcv.getContext('2d');
+    const layer = document.getElementById('map-layer');   // ★ 패닝 대상
+    let vpW = 520, vpH = 496;                           // 뷰포트 크기
+
+    /* ----------  Map Mode 토글(FIXED ↔ FOLLOW)  ---------- */
+    let followMode = false;           // false=FIXED, true=FOLLOW
+
+    function refreshMapModeUI(){
+        const btn    = document.getElementById('map-mode-btn');
+        const holder = document.getElementById('map-holder');   // 지도 창
+
+        if (followMode){                 // ─── FOLLOW ───
+            btn.innerText = 'MAP: FOLLOW';
+            btn.style.background = 'rgba(0,0,0,0.271)';
+
+            /* ① 로봇 반경(m) → 픽셀 */
+            const cropW = Math.round((CROP_RADIUS_M * 2) / MAP_RES_X);
+            const cropH = Math.round((CROP_RADIUS_M * 2) / MAP_RES_Y);
+
+            /* ② 지도 ‘창’만 축소 → 창 밖은 잘림 */
+            holder.style.width  = cropW + 'px';
+            holder.style.height = cropH + 'px';
+
+            /* ③ 패닝 계산용 최신 뷰포트 크기 저장 */
+            vpW = cropW;
+            vpH = cropH;
+
+        } else {                         // ─── FIXED ───
+            btn.innerText = 'MAP: FIXED';
+            btn.style.background = '#007aff';
+
+            holder.style.width  = '520px';
+            holder.style.height = '496px';
+
+            vpW = 520;
+            vpH = 496;
+        }
+    }
+
+    document.getElementById('map-mode-btn').onclick = ()=>{
+        followMode = !followMode;
+        refreshMapModeUI();
+    };
+    refreshMapModeUI();
+
+    /* (3)  월드 → 픽셀 변환 --------------------------------- */
+    function world2px(wx, wy){
+        const px = mcv.width  - (wx - MAP_ORG.x) / MAP_RES_X;
+        const py = (wy - MAP_ORG.y) / MAP_RES_Y;
+        return [px, py];
+    }
+
+    /* (4)  화살표(삼각형) 그리기 ----------------------------- */
+    function drawArrow(wx, wy, yaw){
+        const [px, py] = world2px(wx, wy);
+
+        /* ① FOLLOW 모드면 지도 레이어를 패닝해서 로봇을 중앙 고정 */
+        if(followMode){
+            const offX = vpW/2 - px;
+            const offY = vpH/2 - py;
+            layer.style.transform = `translate(${offX}px, ${offY}px)`;
+        }else{
+            layer.style.transform = 'translate(0px,0px)';  // FIXED
+        }
+
+        /* ② 화살표 자체는 항상 지도 절대좌표(px,py)에 그림 */
+        mctx.clearRect(0, 0, mcv.width, mcv.height);
+        mctx.save();
+        mctx.translate(px, py);
+        mctx.rotate(-yaw - Math.PI / 2);       // 90° CCW 보정
+        mctx.fillStyle = '#00ff00';
+        mctx.beginPath();
+        mctx.moveTo(0,-10); mctx.lineTo(-6,8); mctx.lineTo(6,8);
+        mctx.closePath(); mctx.fill();
+        mctx.restore();
+    }
+
+    /* (5)  주기적으로 /pose 받아서 갱신 ---------------------- */
+    setInterval(()=>{
+        fetch('/pose')
+            .then(r => r.json())
+            .then(p => drawArrow(p.x, p.y, p.yaw));
+    }, 300);      // 0.3 초마다
+    </script>
+
+</body>
+</html>
